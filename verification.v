@@ -93,10 +93,10 @@ Module SimpleQueue.
 
 (** Your first task is to implement and verify simple queues.
     To get you started, we provide the following definitions for
-    the representation type of a simple queue, and for the empty 
+    the representation type of a simple queue, and for the empty
     simple queue. *)
 
-(** [queue A] is the type that represents a queue as a 
+(** [queue A] is the type that represents a queue as a
     singly-linked list.  The list [[x1; x2; ...; xn]] represents
     the queue with [x1] at its front, then [x2], ..., and finally
     [xn] at its end.  The list [[]] represents the empty queue. *)
@@ -104,27 +104,39 @@ Definition queue (A : Type) := list A.
 
 Definition empty {A : Type} : queue A := [].
 
-(** 
+(**
 *** Implementation of simple queues.
 Define [is_empty], [front], [enq], and [deq]. We have provided some starter code
 below that type checks, but it defines those operations in trivial and incorrect
 ways. _Hint:_ this isn't meant to be tricky; you just need to translate the code
-you would naturally write in OCaml into Coq syntax. 
+you would naturally write in OCaml into Coq syntax.
 *)
 
-Definition is_empty {A : Type} (q : queue A) : bool := 
-  true.
+Definition is_empty {A : Type} (q : queue A) : bool :=
+  match q with
+  |[]=> true
+  |_::_=> false
+  end.
 
 Definition front {A : Type} (q : queue A) : option A :=
-  None.
+  match q with
+  |h::_=> Some h
+  |[]=> None
+  end.
 
-Fixpoint enq {A : Type} (x : A) (q : queue A) : queue A := 
-  empty.
+Fixpoint enq {A : Type} (x : A) (q : queue A) : queue A :=
+  match q with
+  |[]=> x::[]
+  |h::t=> h::(enq x t)
+  end.
 
 Definition deq {A : Type} (q : queue A) : queue A :=
-  empty.
+  match q with
+  |[]=> []
+  |_::t=>t
+  end.
 
-(** 
+(**
 *** Verification of simple queues.
 Prove that the equations in the queue specification hold. We have written
 them for you, below, but instead of a proof we have written [Admitted].  That
@@ -133,43 +145,76 @@ there is no proof.  You need to replace [Admitted] with [Proof. ...  Qed.]
 _Hint:_ none of these proofs requires induction.
 *)
 
-Theorem eqn1 : forall (A : Type), 
+Theorem eqn1 : forall (A : Type),
   is_empty (@empty A) = true.
-Admitted.
+  Proof.
+    simpl.
+    trivial.
+  Qed.
 
 Theorem eqn2 : forall (A : Type) (x : A) (q : queue A),
   is_empty (enq x q) = false.
-Admitted.
+  intros A x q.
+  destruct q.
+  all: unfold enq;unfold is_empty;trivial.
+Qed.
 
 Theorem eqn3 : forall (A : Type),
   front (@empty A) = None.
-Admitted.
-
+  Proof.
+    simpl.
+    trivial.
+  Qed.
+  
 Theorem eqn4 : forall (A : Type) (x : A) (q : queue A),
   is_empty q = true -> front (enq x q) = Some x.
-Admitted.
   
+  Proof.
+    intros A x q empty_true.
+   destruct q.
+   unfold enq.
+   unfold front.
+   trivial.
+   discriminate.
+  Qed.
+
 Theorem eqn5 : forall (A : Type) (x : A) (q : queue A),
   is_empty q = false -> front (enq x q) = front q.
-Admitted.
+  
+  Proof.
+   intros A x q not_empty_q.
+   destruct q.
+    discriminate.
+   all: unfold enq;unfold front;trivial.
+  Qed.
 
 Theorem eqn6 : forall (A : Type),
   deq (@empty A) = (@empty A).
-Admitted.
+   
+  Proof.
+    simpl.
+    trivial.
+  Qed.
 
 Theorem eqn7 : forall (A : Type) (x : A) (q : queue A),
   is_empty q = true -> deq (enq x q) = empty.
-Admitted.
+  Proof.
+    intros A x q empty_q.
+    destruct q.
+    unfold enq. unfold deq. trivial.
+    discriminate.
+  Qed.
 
 Theorem eqn8 : forall (A : Type) (x : A) (q : queue A),
   is_empty q = false -> deq (enq x q) = enq x (deq q).
-Admitted.
+  Proof.
+    intros A x q not_empty_q.
+    destruct q.
+    unfold enq. unfold deq. discriminate.
+    unfold enq. unfold deq. trivial.
+  Qed.
 
 End SimpleQueue.
-
-
-
-
 
 (********************************************************************)
 (** ** Part 2: Two-list Queues *)
