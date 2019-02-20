@@ -224,7 +224,7 @@ Module TwoListQueue.
 
 (** Your second task is to implement and verify two-list queues.
     To get you started, we provide the following definitions for
-    the representation type of a two-list queue, and for the empty 
+    the representation type of a two-list queue, and for the empty
     two-list queue. *)
 
 (** [queue A] is the type that represents a queue as a pair of two
@@ -236,7 +236,7 @@ Module TwoListQueue.
     _Representation invariant:_  if [f] is [nil] then [b] is [nil].
 
     The syntax [% type] in this definition tells Coq to treat the
-    [*] symbol as the pair constructor rather than multiplication. 
+    [*] symbol as the pair constructor rather than multiplication.
     You shouldn't need to use that syntax anywhere in your solution. *)
 Definition queue (A : Type) := (list A * list A) % type.
 
@@ -248,7 +248,7 @@ Definition rep_ok {A : Type} (q : queue A) : Prop :=
 
 Definition empty {A : Type} : queue A := ([],[]).
 
-(** 
+(**
 *** Implementation of two-list queues.
 Define [is_empty], [front], [enq], and [deq]. We have provided some starter code
 below that type checks, but it defines those operations in trivial and incorrect
@@ -257,19 +257,36 @@ you would naturally write in OCaml into Coq syntax.  You will need to define
 one new function as part of that.
 *)
 
-Definition is_empty {A : Type} (q : queue A) : bool := 
-  true.
+Definition is_empty {A : Type} (q : queue A) : bool :=
+  match q with
+  |([],[])=>true
+  |(_,_)=>false
+  end.
 
 Definition front {A : Type} (q : queue A) : option A :=
-  None.
+  match q with
+  |([],_)=> None
+  |(h::_,_)=>Some h
+  end.
 
-Definition enq {A : Type} (x : A) (q : queue A) : queue A := 
-  empty.
+Definition norm {A : Type} (q : queue A) : queue A :=
+  match q with
+  |([],R)=>(rev R,[])
+  | _ => q
+  end.
+
+Definition enq {A : Type} (x : A) (q : queue A) : queue A :=
+  match q with
+  |(L,R)=>norm (L, x::R)
+  end.
 
 Definition deq {A : Type} (q : queue A) : queue A :=
-  empty.
+  match q with
+  |(_::t,R)=> norm(t,R)
+  |_ => q
+  end.
 
-(** 
+(**
 *** Verification of two-list queues.
 Next you need to prove that the equations in the queue specification hold.
 The statements of those equations below now include as a precondition
@@ -278,33 +295,100 @@ _Hint:_ none of these proofs requires induction, but they will be
 harder and longer than the simple queue proofs.
 *)
 
-Theorem eqn1 : forall (A : Type), 
+Theorem eqn1 : forall (A : Type),
   is_empty (@empty A) = true.
-Admitted.
+  Proof.
+    simpl. trivial.
+  Qed.
+
+Lemma eqn2_helper : forall (A : Type) (x : A) (R : list A),
+  R = [] -> is_empty (enq x ([], R)) = false.
+Proof.
+  intros A x R R_empty. rewrite R_empty. 
+  unfold enq. unfold is_empty. simpl. trivial.
+Qed.
 
 Theorem eqn2 : forall (A : Type) (x : A) (q : queue A),
   rep_ok q -> is_empty (enq x q) = false.
-Admitted.
+  Proof.
+    intros A x q rep_gucci.
+    destruct q. destruct l.
+    - rewrite eqn2_helper. trivial. rewrite rep_gucci. trivial. trivial.
+    - unfold enq. simpl. trivial. 
+  Qed.
 
 Theorem eqn3 : forall (A : Type),
   front (@empty A) = None.
-Admitted.
+  Proof.
+    simpl. trivial.
+  Qed.
 
 Theorem eqn4 : forall (A : Type) (x : A) (q : queue A),
   rep_ok q -> is_empty q = true -> front (enq x q) = Some x.
-Admitted.
-  
+  Proof.
+    intros A x q rep_gucci q_empty.
+    destruct q as [[ |h1 t1 ][ | h2 t2]]. 
+    - simpl. trivial.
+    - rewrite rep_gucci. trivial. trivial.
+    - discriminate.
+    - discriminate. 
+  Qed.
+
+Lemma fals : forall (A : Type) (lst2 : list A) ,
+  rep_ok ([],lst2) /\ lst2 <> [] -> False.
+intros A lst2 rep. destruct rep as [ok lst]. Check ok. auto.
+Qed.
+
+Print fals.
+
+Lemma fal' : forall (A : Type) (h2 : A),
+  ([h2] = []) ->  False.
+Proof.
+  intros A h2. intros ass. discriminate.
+Qed. 
+
+Lemma fal'' : forall (A : Type) (h2 : A) (t2 : list A),
+  h2::t2 = [] -> False.
+Proof.
+  intros A h2 t2 ass. discriminate.
+Qed. 
+
+Lemma repp : forall (A :Type) (h2 : A) (t2: list A),
+  rep_ok ([],h2::t2)-> False.
+Proof.
+  intros A h2 t2 ass.
+  simpl in ass. destruct t2 as [|em nem]. 
+  apply fal' in ass. 
+  assumption. trivial. simpl in ass. apply fal'' in ass.
+  assumption. trivial.
+Qed.
+
 Theorem eqn5 : forall (A : Type) (x : A) (q : queue A),
   rep_ok q -> is_empty q = false -> front (enq x q) = front q.
-Admitted.
+  intros A x q repok notEm. destruct q as [[|h1 t1] [|h2 t2]]. 
+  simpl. discriminate.
+  - simpl in repok. apply fal'' in repok. contradiction.
+  trivial.
+  - auto.
+  - auto.
+Qed.
 
 Theorem eqn6 : forall (A : Type),
   deq (@empty A) = @empty A.
-Admitted.
+  Proof.
+    simpl. trivial.
+  Qed.
 
 Theorem eqn7 : forall (A : Type) (x : A) (q : queue A),
   rep_ok q -> is_empty q = true -> deq (enq x q) = empty.
-Admitted.
+  Proof.
+    intros A x q rep_gucci empty_q.
+    destruct q as [ [|h1 t1] [|h2 t2] ].  
+    - simpl. trivial.
+    - rewrite rep_gucci. simpl. trivial. trivial.
+    - discriminate.
+    - discriminate.
+  Qed.
 
 (**
 It turns out that two-list queues actually do not satisfy [eqn8]! To show that,
@@ -316,19 +400,25 @@ the proofs should be easy; each one should need only about one tactic.
 
 Module CounterEx.
 
-Definition x : nat := 0.  
+Definition x : nat := 666.
 (* change [0] to a value of your choice *)
-Definition q : (list nat * list nat) := empty. 
+Definition q : (list nat * list nat) := (3::[],5::4::[]).
 (* change [empty] to a value of your choice *)
 
 Theorem counter1 : rep_ok q.
-Admitted.
+Proof.
+  discriminate.
+Qed.
 
 Theorem counter2 : is_empty q = false.
-Admitted.
+Proof.
+  simpl. trivial.
+Qed.
 
 Theorem counter3 : deq (enq x q) <> enq x (deq q).
-Admitted.
+Proof.
+  simpl. discriminate.
+Qed.
 
 End CounterEx.
 
@@ -345,38 +435,138 @@ Definition equiv {A:Type} (q1 q2 : queue A) : Prop :=
   | ((f1,b1),(f2,b2)) => f1 ++ rev b1 = f2 ++ rev b2
   end.
 
-Hint Unfold equiv.  
-(* The command above gives a hint to the [auto] tactic to try unfolding 
-   [equiv] as part of its proof search.  This will help you in the 
+Hint Unfold equiv.
+(* The command above gives a hint to the [auto] tactic to try unfolding
+   [equiv] as part of its proof search.  This will help you in the
    next proof. *)
 
-(** 
+(**
 Now prove that the following relaxed form of [eqn8] holds.  _Hint:_
 this is probably the hardest proof in the assignment.  Don't hesitate
 to manage the complexity of the proof by stating and proving helper lemmas.
 *)
 
+Lemma fals1 : forall (A : Type) (lst2 : list A) ,
+rep_ok ([],lst2) /\ lst2 <> [] -> False.
+intros A lst2 rep. destruct rep as [ok lst]. Check ok. auto.
+Qed.
+
+Print fals1.
+
+Lemma fal1' : forall (A : Type) (h2 : A),
+([h2] = []) ->  False.
+Proof.
+intros A h2. intros ass. discriminate.
+Qed. 
+
+
+Lemma fal1'' : forall (A : Type) (h2 : A) (t2 : list A),
+h2::t2 = [] -> False.
+Proof.
+intros A h2 t2 ass. discriminate.
+Qed. 
+
+Lemma repp1 : forall (A :Type) (h2 : A) (t2: list A),
+rep_ok ([],h2::t2)-> False.
+Proof.
+intros A h2 t2 ass.
+simpl in ass. destruct t2 as [|em nem]. 
+apply fal1' in ass. 
+assumption. trivial. simpl in ass. apply fal1'' in ass.
+assumption. trivial.
+Qed.
+
+(*)
+Lemma helppp : forall (A : Type) (x h1 h2 : A) (t2 : list A),
+equiv (deq (enq x ([h1], h2 :: t2))) (enq x (deq ([h1], h2 :: t2))).
+Proof.
+  intros A x h1 h2  t2. simpl.
+*)
+
+(*)
+Lemma hii : forall (A : Type) (x h1 h2 : A) (t2 : list A),
+(enq x (deq ([h1], h2 :: t2))) = ((rev t2 ++ [h2])++[x],[]).
+Proof.
+  intros A x h1 h2 t2. simpl. destruct t2 as [|em mem].
+  - simpl. auto. 
+Qed.
+*)
+(*)
+Lemma helppp : forall (A : Type) (t2 : list A),
+  rev
+*)
+
+(*)
+Lemma nonem : forall (A : Type) (em' h2 : A) (mem' : list A),
+  (rev mem' ++ [em']) ++[h2]<>  [].
+Proof.
+  intros A em' h2 mem'.
+  destruct mem' as [| a b]. 
+*)
+
 Theorem eqn8_equiv : forall (A : Type) (x : A) (q : queue A),
-  rep_ok q -> is_empty q = false -> 
+  rep_ok q -> is_empty q = false ->
   equiv (deq (enq x q)) (enq x (deq q)).
-Admitted.
+Proof.
+  intros A x q rep notem.
+  destruct q as [[| h1 t1] [| h2 t2]].
+  - discriminate.
+  - apply repp1 in rep. contradiction.
+  - destruct t1 as [|em mem]; simpl; auto.
+  - destruct t1 as [|em mem];unfold equiv; destruct t2 as [| em' mem'];
+    simpl; trivial.
+    destruct (rev mem' ++ [em']);simpl;auto.
+      replace (((l ++ [h2]) ++ [x]) ++ []) with ((l ++ [h2]) ++ [x]).
+      auto. rewrite <-app_nil_end. trivial. 
+Qed.
 
 (**
 Finally, verify that [empty] satisfies the RI, and that [enq] and [deq] both
 preserve the RI.  _Hint:_ the last proof requires induction.
 *)
 
-Theorem rep_ok_empty : forall (A : Type), 
+Theorem rep_ok_empty : forall (A : Type),
   rep_ok (@empty A).
-Admitted.
+  Proof.
+    intros A. simpl. trivial.
 
-Theorem rep_ok_enq : forall (A : Type) (q : queue A), 
+  Qed.
+
+
+Theorem rep_ok_enq : forall (A : Type) (q : queue A),
   rep_ok q -> forall (x : A), rep_ok (enq x q).
-Admitted.
+  Proof.
+    intros A q rep_gucci_q x.
+    destruct q as [ [|h1 t1] [|h2 t2] ].
+    - simpl. discriminate.
+    - simpl. trivial. 
+    - simpl. discriminate.
+    - simpl. discriminate.
+  Qed.
+
+
+Lemma rep_ok_deq_helper: forall (A : Type) (L : list A),
+  rep_ok (L,[]) -> rep_ok (deq (L,[])).
+  Proof.
+    intros A L rep_gucci.
+    destruct L as [|h t] .
+    - simpl. trivial.
+    - simpl. destruct t. simpl. trivial. simpl. discriminate.  
+  Qed.
+
+
 
 Theorem rep_ok_deq: forall (A : Type) (q : queue A),
   rep_ok q -> rep_ok (deq q).
-Admitted.
+  Proof.
+    intros A q rep_gucci.
+    destruct q as [ [|h1 t1] [|h2 t2] ].
+    - simpl. trivial.
+    - simpl. trivial.
+    - simpl. destruct t1. simpl . trivial. simpl.  discriminate. 
+    - simpl. destruct t1. simpl. auto. simpl. discriminate. 
+  Qed.
+
 
 End TwoListQueue.
 
