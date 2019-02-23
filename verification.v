@@ -554,8 +554,6 @@ Lemma rep_ok_deq_helper: forall (A : Type) (L : list A),
     - simpl. destruct t. simpl. trivial. simpl. discriminate.  
   Qed.
 
-
-
 Theorem rep_ok_deq: forall (A : Type) (q : queue A),
   rep_ok q -> rep_ok (deq q).
   Proof.
@@ -576,26 +574,50 @@ End TwoListQueue.
 
 Module Logic.
 
-(** 
-Prove each of the following theorems.  You may _not_ use the [tauto] 
+(**
+Prove each of the following theorems.  You may _not_ use the [tauto]
 or [auto] tactic in your proofs.
 *)
 
 Theorem logic1 : forall P Q R S T: Prop,
   ((P /\ Q) /\ R) -> (S /\ T) -> (Q /\ S).
-Admitted.
+Proof.
+  intros P Q R S T PandQandR SandT.
+  split.
+  - destruct PandQandR as [PandQ evR].
+    destruct PandQ as [evP evQ].
+    assumption.
+  - destruct SandT as [evS evT].
+    assumption.
+Qed.
 
 Theorem logic2 : forall P Q R S : Prop,
   (P -> Q) -> (R -> S) -> (P \/ R) -> (Q \/ S).
-Admitted.
+Proof.
+  intros P Q R S PimpQ RimpS PorR.
+  destruct PorR as [evP | evR]. 
+  left. apply PimpQ. assumption.
+  right. apply RimpS. assumption.
+Qed.
 
 Theorem logic3 : forall P Q : Prop,
   (P -> Q) -> (((P /\ Q) -> P) /\ (P -> (P /\ Q))).
-Admitted.  
+Proof.
+  intros P Q PimpQ.
+  split.
+  - intros PandQ. destruct PandQ as [evP evQ]. assumption.
+  - intros evP. split. assumption. apply PimpQ. assumption.
+Qed. 
 
 Theorem logic4 : forall P Q : Prop,
   (P -> Q) -> (~~P -> ~~Q).
-Admitted.
+Proof.
+  intros P Q PimpQ.
+  unfold not.
+  intros nnP nQ.
+  apply nnP.
+  intros evP. apply nQ. apply PimpQ. assumption.
+Qed.
 
 End Logic.
 
@@ -608,7 +630,7 @@ Module Induction.
 (**
 Here is an OCaml function:
 <<
-let rec sumsq_to n = 
+let rec sumsq_to n =
   if n = 0 then 0
   else n*n + sumsq_to (n-1)
 >>
@@ -619,14 +641,45 @@ Prove that
 >>
 
 First, prove it mathematically (i.e., not in Coq), by completing
-the following template.  
+the following template.
 
 -----------------------------------------------------------------
 Theorem:  sumsq_to n = n * (n+1) * (2*n + 1) / 6.
 
 Proof:  by induction on n.
 
-FILL IN your proof here.  You must state the property P, the base case,
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+Let P(n) be the statement "sumsq_to n = n * (n+1) * (2*n + 1) / 6".
+In addition, we'll use the notation e1 {e2,e3} to represent "substitute 
+e3 for e2 in the expression e1" (this is analogous to let e2 = e3 in e1).
+
+Base case P(0): 
+  (n * (n+1) * (2*n + 1) / 6) {n,0} = 0 * (0+1) * (2*0 + 1)/6 = 0
+  sunsq_to 0 = 0 (this is true since it matches the first case of the 
+  definition of sumsq_to n, hence BY DEFINITION).
+  Hence P(0) holds.
+
+Inductive Hypothesis (IH): Assume P(k).
+
+Inductive case: Show P(k+1).
+  sumsq_to (k+1) = (k+1)*(k+1) + sumsq_to (k)                  (BY DEFINITION)
+                 = (k+1)*(k+1) + k*(k+1)*(2*k+1)/6             (BY IH)
+                 = (k+1)*((k+1)+(k*(2*k+1)/6))                 (BY ALGEBRA)
+                 = (k+1)*(6*(k+1)+k*(2*k+1))/6                 (THE REST IS)
+                 = (k+1)*(6*(k+2-1)+(k+2-2)*(2*k+1))/6         (JUST ALGEBRA)
+                 = (k+1)*((k+2)*(6+2*k+1)-6-2*(2*k+1)/6
+                 = (k+1)*((k+2)*(2k+7)-4*k-8)/6          
+                 = (k+1)*((k+2)*(2*k+7)-4(k+2)/6
+                 = (k+1)*(k+2)*(2*k+3)/6
+                 = (k+1)*(k+2)*(2*(k+1)+1)/ 6
+QED.
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+FILL IN your proof here.                                  [Proof above] 
+You must state the property P, the base case,
 the inductive case, and the inductive hypothesis, and justify the
 reasoning you use in each proof step.  "By algebra" is an acceptable
 justification for collecting terms, adding, multiplying, etc.  If you
@@ -640,11 +693,37 @@ Second, prove it in Coq, by completing the following code.
 
 (** [sumsq_to n] is [0*0 + 1*1 + ... + n*n]. *)
 Fixpoint sumsq_to (n:nat) : nat :=
-  0.  (* replace [0] with your own definition *)
+  match n with
+  | 0 => 0
+  | S k => (k+1)*(k+1) + sumsq_to (k)
+  end.
+
+(*  *)
+Lemma sum_helper : forall n,
+  sumsq_to (S n) = (n+1)*(n+1) + sumsq_to n.
+Proof.
+  intros n. simpl. ring.
+Qed.
+
+Lemma distr : forall l m n,
+  l * (n + sumsq_to m) = l * n + l*sumsq_to m.
+Proof.
+  intros l m n. 
+  induction l as [ | a IH]. 
+  trivial. ring. 
+Qed.
 
 Theorem sumsq : forall n,
   6 * sumsq_to n = n * (n+1) * (2*n+1).
-Admitted.
+Proof.
+  intros n.
+  induction n as [ |k IH].
+  - trivial.
+  - rewrite sum_helper.
+    rewrite -> distr. 
+    rewrite -> IH. 
+    ring. 
+Qed.
 
 End Induction.
 
